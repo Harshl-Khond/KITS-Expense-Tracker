@@ -2,22 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 
-const COLORS = {
-  PAGE_BG: "#E6EDF3",
-  CARD_BG: "#FFFFFF",
-  NAVY: "#3A5A7A",
-  ACCENT: "#5C8DB8",
-  ACCENT_HOVER: "#4A7AA3",
-  TEXT_MAIN: "#1F2A37",
-  TEXT_MUTED: "#4B5563",
-  BORDER: "#B6C7D6",
-};
-
 function Login() {
   const navigate = useNavigate();
-
   const [form, setForm] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -25,103 +16,73 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    setLoading(true);
     try {
       const res = await api.post("/login", form);
-
       setMessage(res.data.message);
-
-      // Save session + user
       localStorage.setItem("session", res.data.session);
       localStorage.setItem("user", JSON.stringify(res.data.user));
-
-      // Redirect by role
-      if (res.data.user.role === "admin") {
-        navigate("/admin-dashboard");
-      } else {
-        navigate("/employee-dashboard");
-      }
+      if (res.data.user.role === "admin") navigate("/admin-dashboard");
+      else navigate("/employee-dashboard");
     } catch (err) {
       if (err.response) setMessage(err.response.data.error);
       else setMessage("Something went wrong");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ backgroundColor: COLORS.PAGE_BG }}
-    >
-      {/* Card */}
-      <div
-        className="w-full max-w-md p-10 rounded-xl shadow-sm"
-        style={{
-          backgroundColor: COLORS.CARD_BG,
-          borderLeft: `5px solid ${COLORS.ACCENT}`,
-        }}
-      >
-        <h2
-          className="text-3xl font-semibold text-center mb-6"
-          style={{ color: COLORS.NAVY }}
-        >
-          Login
-        </h2>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "var(--bg)" }}>
+      <div className="card animate-in" style={{ width: "100%", maxWidth: "400px", padding: "36px 32px" }}>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <input
-            name="email"
-            type="email"
-            placeholder="Email"
-            onChange={handleChange}
-            className="w-full px-4 py-2 rounded-md border outline-none"
-            style={{ borderColor: COLORS.BORDER }}
-            required
-          />
+        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "var(--teal)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "22px", color: "#fff", marginBottom: "14px" }}>💰</div>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--navy)" }}>Welcome Back</h2>
+          <p style={{ color: "var(--slate)", fontSize: "0.875rem", marginTop: "4px" }}>Sign in to your account</p>
+        </div>
 
-          <input
-            name="password"
-            type="password"
-            placeholder="Password"
-            onChange={handleChange}
-            className="w-full px-4 py-2 rounded-md border outline-none"
-            style={{ borderColor: COLORS.BORDER }}
-            required
-          />
-
-          <button
-            type="submit"
-            className="w-full py-2.5 rounded-md font-semibold text-white transition"
-            style={{ backgroundColor: COLORS.ACCENT }}
-            onMouseOver={(e) =>
-              (e.currentTarget.style.backgroundColor = COLORS.ACCENT_HOVER)
-            }
-            onMouseOut={(e) =>
-              (e.currentTarget.style.backgroundColor = COLORS.ACCENT)
-            }
-          >
-            Login
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div>
+            <label style={{ display: "block", marginBottom: "5px", fontSize: "0.82rem", fontWeight: 500, color: "var(--navy-light)" }}>Email</label>
+            <input name="email" type="email" placeholder="you@example.com" onChange={handleChange} className="input" required />
+          </div>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
+              <label style={{ fontSize: "0.82rem", fontWeight: 500, color: "var(--navy-light)" }}>Password</label>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{ background: "none", border: "none", fontSize: "0.75rem", color: "var(--teal)", cursor: "pointer", fontWeight: 600 }}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+            <input
+              name="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              onChange={handleChange}
+              className="input"
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: "6px", padding: "11px", opacity: loading ? 0.7 : 1 }} disabled={loading}>
+            {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
         {message && (
-          <p
-            className="text-center mt-4 font-medium"
-            style={{ color: COLORS.NAVY }}
-          >
+          <p style={{ textAlign: "center", marginTop: "14px", fontSize: "0.85rem", fontWeight: 500, color: message.toLowerCase().includes("success") ? "var(--green)" : "var(--rose)" }}>
             {message}
           </p>
         )}
 
-        <button
-          onClick={() => navigate("/")}
-          className="w-full mt-6 py-2 rounded-md border transition"
-          style={{
-            borderColor: COLORS.BORDER,
-            color: COLORS.TEXT_MAIN,
-          }}
-        >
-          Create Account / Signup
-        </button>
+        <div style={{ textAlign: "center", marginTop: "18px" }}>
+          <button onClick={() => navigate("/")} className="btn btn-outline" style={{ width: "100%" }}>
+            Create Account
+          </button>
+        </div>
       </div>
     </div>
   );

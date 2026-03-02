@@ -2,24 +2,9 @@ import { useEffect, useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import { api } from "../api";
 
-const COLORS = {
-  PAGE_BG: "#CAD2C5",
-  CARD_BG: "#FFFFFF",
-  NAVY: "#2F3E46",
-  ACCENT: "#52796F",
-  EXPENSE: "#B23A48",
-  BALANCE: "#3A5A40",
-  TEXT_MAIN: "#1B1F23",
-  TEXT_MUTED: "#4F5D5E",
-  BORDER: "#84A98C",
-};
-
 function AdminDashboard() {
-  const [summary, setSummary] = useState({
-    total_fund: 0,
-    total_expenses: 0,
-    balance: 0,
-  });
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState({ total_fund: 0, total_expenses: 0, balance: 0, pending_count: 0 });
 
   const loadSummary = async () => {
     try {
@@ -27,104 +12,58 @@ function AdminDashboard() {
       setSummary(res.data);
     } catch (err) {
       console.log("Error loading summary:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadSummary();
-  }, []);
+  useEffect(() => { loadSummary(); }, []);
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+          <p style={{ color: "var(--slate)", fontSize: "1rem" }}>Loading dashboard...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  const cards = [
+    { label: "Total Funds", value: `₹${summary.total_fund}`, accent: "teal", icon: "💎" },
+    { label: "Total Disbursed", value: `₹${summary.total_expenses}`, accent: "rose", icon: "📤" },
+    { label: "Available Balance", value: `₹${summary.balance}`, accent: "green", icon: "🏦" },
+    { label: "Pending Requests", value: summary.pending_count, accent: "amber", icon: "⏳" },
+  ];
 
   return (
     <AdminLayout>
-      {/* Page Title */}
-      <h1
-        className="text-3xl font-semibold mb-2"
-        style={{ color: COLORS.NAVY }}
-      >
-        Admin Dashboard
-      </h1>
+      <div className="animate-in">
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--navy)", marginBottom: "4px" }}>Dashboard</h1>
+        <p style={{ color: "var(--slate)", fontSize: "0.875rem", marginBottom: "28px" }}>Overview of all activities</p>
 
-      <p className="mb-8" style={{ color: COLORS.TEXT_MUTED }}>
-        Overview of all activities
-      </p>
-
-      {/* Dashboard Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Total Funds */}
-        <div
-          className="p-6 rounded-xl shadow-sm"
-          style={{
-            backgroundColor: COLORS.CARD_BG,
-            borderLeft: `5px solid ${COLORS.ACCENT}`,
-          }}
-        >
-          <h2 className="text-lg font-medium mb-2" style={{ color: COLORS.TEXT_MAIN }}>
-            Total Funds
-          </h2>
-          <p className="text-3xl font-bold" style={{ color: COLORS.ACCENT }}>
-            ₹{summary.total_fund}
-          </p>
-          <p className="text-sm mt-2" style={{ color: COLORS.TEXT_MUTED }}>
-            Total money added by admins
-          </p>
+        {/* Summary Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "32px" }}>
+          {cards.map((c, i) => (
+            <div key={i} className={`card card-accent-${c.accent}`} style={{ padding: "22px 20px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <p style={{ fontSize: "0.82rem", fontWeight: 500, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{c.label}</p>
+                <span style={{ fontSize: "1.3rem" }}>{c.icon}</span>
+              </div>
+              <p style={{ fontSize: "1.75rem", fontWeight: 700, color: `var(--${c.accent})` }}>{c.value}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Total Expenses */}
-        <div
-          className="p-6 rounded-xl shadow-sm"
-          style={{
-            backgroundColor: COLORS.CARD_BG,
-            borderLeft: `5px solid ${COLORS.EXPENSE}`,
-          }}
-        >
-          <h2 className="text-lg font-medium mb-2" style={{ color: COLORS.TEXT_MAIN }}>
-            Total Expenses
-          </h2>
-          <p className="text-3xl font-bold" style={{ color: COLORS.EXPENSE }}>
-            ₹{summary.total_expenses}
-          </p>
-          <p className="text-sm mt-2" style={{ color: COLORS.TEXT_MUTED }}>
-            Total employee expenses
+        {/* Quick Info */}
+        <div className="card" style={{ padding: "24px" }}>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--navy)", marginBottom: "8px" }}>📈 Quick Summary</h2>
+          <p style={{ color: "var(--slate)", fontSize: "0.875rem", lineHeight: 1.6 }}>
+            You have <strong style={{ color: "var(--amber)" }}>{summary.pending_count}</strong> pending expense requests awaiting approval.
+            The total disbursed amount is <strong style={{ color: "var(--rose)" }}>₹{summary.total_expenses}</strong> with
+            a remaining balance of <strong style={{ color: "var(--green)" }}>₹{summary.balance}</strong>.
           </p>
         </div>
-
-        {/* Available Balance */}
-        <div
-          className="p-6 rounded-xl shadow-sm"
-          style={{
-            backgroundColor: COLORS.CARD_BG,
-            borderLeft: `5px solid ${COLORS.BALANCE}`,
-          }}
-        >
-          <h2 className="text-lg font-medium mb-2" style={{ color: COLORS.TEXT_MAIN }}>
-            Available Balance
-          </h2>
-          <p className="text-3xl font-bold" style={{ color: COLORS.BALANCE }}>
-            ₹{summary.balance}
-          </p>
-          <p className="text-sm mt-2" style={{ color: COLORS.TEXT_MUTED }}>
-            Remaining usable fund balance
-          </p>
-        </div>
-      </div>
-
-      {/* Analytics Section */}
-      <div
-        className="mt-10 p-8 rounded-xl shadow-sm"
-        style={{
-          backgroundColor: COLORS.CARD_BG,
-          borderLeft: `5px solid ${COLORS.BORDER}`,
-        }}
-      >
-        <h2
-          className="text-xl font-semibold mb-3"
-          style={{ color: COLORS.NAVY }}
-        >
-          Analytics (Coming Soon)
-        </h2>
-        <p style={{ color: COLORS.TEXT_MUTED }}>
-          Graphs and visual insights will appear here.
-        </p>
       </div>
     </AdminLayout>
   );

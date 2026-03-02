@@ -2,151 +2,213 @@ import { useEffect, useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import { api } from "../api";
 
-const COLORS = {
-  PAGE_BG: "#CAD2C5",
-  CARD_BG: "#FFFFFF",
-  NAVY: "#2F3E46",
-  ACCENT: "#52796F",
-  ACCENT_DARK: "#3A5A40",
-  EXPENSE: "#B23A48",
-  TEXT_MAIN: "#1B1F23",
-  TEXT_MUTED: "#4F5D5E",
-  BORDER: "#84A98C",
-};
-
 function AllExpenses() {
+  const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState([]);
   const [filteredExpenses, setFilteredExpenses] = useState([]);
   const [filterName, setFilterName] = useState("");
   const [message, setMessage] = useState("");
 
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editExpense, setEditExpense] = useState(null);
+  const [editForm, setEditForm] = useState({ description: "", amount: "", date: "" });
+
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+
   const loadExpenses = async () => {
     try {
       const res = await api.get("/admin/get-all-expenses");
-      setExpenses(res.data.expenses || []);
-      setFilteredExpenses(res.data.expenses || []);
+      const sorted = (res.data.expenses || []).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      setExpenses(sorted);
+      setFilteredExpenses(sorted);
     } catch (err) {
       console.log("Error fetching expenses", err);
-      if (err.response?.status === 401) {
-        setMessage("Session expired. Please login again.");
-        localStorage.clear();
-        window.location.href = "/login";
-      } else {
-        setMessage("Failed to fetch expenses");
-      }
+      if (err.response?.status === 401) { setMessage("Session expired."); localStorage.clear(); window.location.href = "/login"; }
+      else setMessage("Failed to fetch expenses");
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadExpenses();
-  }, []);
+  const handleFilter = (val) => {
+    setFilterName(val);
+    if (!val.trim()) { setFilteredExpenses(expenses); return; }
+    setFilteredExpenses(expenses.filter((e) => e.employee_name?.toLowerCase().includes(val.toLowerCase())));
+  };
 
-  const handleFilter = (name) => {
-    setFilterName(name);
-    if (!name.trim()) {
-      setFilteredExpenses(expenses);
-      return;
+  const handleExport = () => {
+    const token = localStorage.getItem("session");
+    if (!token) { setMessage("Session expired."); return; }
+    window.open(`${import.meta.env.VITE_API_URL}/admin/export-expenses-excel?session_token=${token}`, "_blank");
+  };
+
+  const handleDisburse = async (id) => {
+    if (!window.confirm("Disburse this expense?")) return;
+    try {
+      const res = await api.post("/admin/disburse-expense", { expense_id: id });
+      setMessage(res.data.message);
+      loadExpenses();
+    } catch (err) {
+      setMessage(err.response?.data?.error || "Failed to disburse");
     }
-    setFilteredExpenses(
-      expenses.filter((e) =>
-        (e.employee_name || "").toLowerCase().includes(name.toLowerCase())
-      )
+  };
+
+  const openEditModal = (exp) => {
+    setEditExpense(exp);
+    setEditForm({ description: exp.description, amount: exp.amount, date: exp.date });
+    setEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/update-expense/${editExpense.id}`, editForm);
+      setMessage("Expense updated successfully");
+      setEditModalOpen(false);
+      loadExpenses();
+    } catch (err) {
+      setMessage(err.response?.data?.error || "Update failed");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this expense?")) return;
+    try {
+      await api.delete(`/delete-expense/${id}`, { data: { session_token: localStorage.getItem("session") } });
+      setMessage("Expense deleted");
+      loadExpenses();
+    } catch (err) {
+      setMessage(err.response?.data?.error || "Delete failed");
+    }
+  };
+
+  useEffect(() => { loadExpenses(); }, []);
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+          <p style={{ color: "var(--slate)" }}>Loading expenses...</p>
+        </div>
+      </AdminLayout>
     );
-  };
+  }
 
   return (
     <AdminLayout>
-      {/* Center Wrapper */}
-      <div className="flex flex-col items-center justify-center min-h-[70vh]">
+      {/* Edit Modal */}
+      {editModalOpen && (
+        <div className="modal-overlay" onClick={() => setEditModalOpen(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h3 style={{ fontSize: "1.15rem", fontWeight: 600, color: "var(--navy)" }}>Edit Expense</h3>
+              <button onClick={() => setEditModalOpen(false)} style={{ background: "none", border: "none", fontSize: "1.3rem", cursor: "pointer", color: "var(--slate)" }}>✕</button>
+            </div>
+            <form onSubmit={handleEditSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <input value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className="input" placeholder="Description" />
+              <input type="number" value={editForm.amount} onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })} className="input" placeholder="Amount" />
+              <input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} className="input" />
+              <button type="submit" className="btn btn-primary" style={{ width: "100%" }}>Save Changes</button>
+            </form>
+          </div>
+        </div>
+      )}
 
-        {/* Title */}
-        <h2
-          className="text-3xl font-semibold mb-2"
-          style={{ color: COLORS.NAVY }}
-        >
-          All Employee Expenses
-        </h2>
-        <p className="mb-6 text-center" style={{ color: COLORS.TEXT_MUTED }}>
-          View and filter all expenses submitted by employees
-        </p>
+      {/* Bill Preview Modal */}
+      {previewOpen && previewData && (
+        <div className="modal-overlay" onClick={() => setPreviewOpen(false)}>
+          <div style={{ background: "#fff", borderRadius: "16px", padding: "16px", maxWidth: "90vw", maxHeight: "90vh", overflow: "auto", animation: "slideUp 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: "right", marginBottom: "8px" }}>
+              <button onClick={() => setPreviewOpen(false)} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "var(--slate)" }}>✕</button>
+            </div>
+            {previewData.startsWith("data:application/pdf") ? (
+              <iframe src={previewData} title="PDF Preview" style={{ width: "80vw", height: "80vh", border: "none", borderRadius: "8px" }} />
+            ) : (
+              <img src={previewData} alt="Bill" style={{ maxWidth: "100%", maxHeight: "80vh", borderRadius: "8px" }} />
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="animate-in">
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--navy)", marginBottom: "4px" }}>All Expenses</h1>
+        <p style={{ color: "var(--slate)", fontSize: "0.875rem", marginBottom: "20px" }}>View, filter, disburse, edit, or delete expenses</p>
 
         {message && (
-          <p className="mb-4" style={{ color: COLORS.EXPENSE }}>
-            {message}
-          </p>
+          <div className="card" style={{ padding: "12px 16px", marginBottom: "16px", borderLeft: "4px solid var(--teal)" }}>
+            <p style={{ fontSize: "0.85rem", fontWeight: 500, color: "var(--navy)" }}>{message}</p>
+          </div>
         )}
 
-        {/* Search */}
-        <input
-          type="text"
-          placeholder="Search by Employee Name"
-          value={filterName}
-          onChange={(e) => handleFilter(e.target.value)}
-          className="px-4 py-2 mb-6 w-80 rounded-md border outline-none"
-          style={{ borderColor: COLORS.BORDER }}
-        />
+        {/* Search + Export */}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" }}>
+          <input
+            type="text"
+            placeholder="🔍 Search by employee name..."
+            value={filterName}
+            onChange={(e) => handleFilter(e.target.value)}
+            className="input"
+            style={{ maxWidth: "320px", flex: 1 }}
+          />
+          <button onClick={handleExport} className="btn btn-indigo btn-sm">📥 Export Excel</button>
+        </div>
 
-        {/* Table Card */}
-        <div
-          className="w-full max-w-6xl p-6 rounded-xl shadow-sm"
-          style={{
-            backgroundColor: COLORS.CARD_BG,
-            borderLeft: `5px solid ${COLORS.ACCENT}`,
-          }}
-        >
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse">
+        {/* Table */}
+        <div className="card" style={{ padding: "4px" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table className="clean-table">
               <thead>
-                <tr style={{ backgroundColor: COLORS.PAGE_BG }}>
-                  <th className="py-3 px-4 text-left">Employee Name</th>
-                  <th className="py-3 px-4 text-left">Description</th>
-                  <th className="py-3 px-4 text-left">Date</th>
-                  <th className="py-3 px-4 text-left">Amount</th>
-                  <th className="py-3 px-4 text-left">Bill</th>
+                <tr>
+                  <th>Employee</th>
+                  <th>Description</th>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Bill</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
-
               <tbody>
                 {filteredExpenses.length > 0 ? (
                   filteredExpenses.map((exp) => (
-                    <tr
-                      key={exp.id}
-                      className="border-b"
-                      style={{ borderColor: COLORS.BORDER }}
-                    >
-                      <td className="py-2 px-4">{exp.employee_name}</td>
-                      <td className="py-2 px-4">{exp.description}</td>
-                      <td className="py-2 px-4">{exp.date}</td>
-                      <td
-                        className="py-2 px-4 font-semibold"
-                        style={{ color: COLORS.ACCENT_DARK }}
-                      >
-                        ₹{exp.amount}
-                      </td>
-                      <td className="py-2 px-4">
+                    <tr key={exp.id}>
+                      <td style={{ fontWeight: 500 }}>{exp.employee_name}</td>
+                      <td>{exp.description}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>{exp.date}</td>
+                      <td style={{ fontWeight: 600 }}>₹{exp.amount}</td>
+                      <td>
                         {exp.bill_image ? (
-                          <img
-                            src={exp.bill_image}
-                            alt="Bill"
-                            className="w-20 rounded-md border"
-                            style={{ borderColor: COLORS.BORDER }}
-                          />
-                        ) : (
-                          "-"
+                          exp.bill_image.startsWith("data:application/pdf") ? (
+                            <button onClick={() => { setPreviewData(exp.bill_image); setPreviewOpen(true); }} className="btn btn-outline btn-sm">📄 PDF</button>
+                          ) : (
+                            <img
+                              src={exp.bill_image}
+                              alt="Bill"
+                              style={{ width: "44px", height: "44px", objectFit: "cover", borderRadius: "6px", cursor: "pointer", border: "1px solid var(--border)" }}
+                              onClick={() => { setPreviewData(exp.bill_image); setPreviewOpen(true); }}
+                            />
+                          )
+                        ) : "—"}
+                      </td>
+                      <td>
+                        <span className={`badge ${exp.status === "disbursed" ? "badge-disbursed" : "badge-pending"}`}>
+                          {exp.status === "disbursed" ? "Disbursed" : "Pending"}
+                        </span>
+                      </td>
+                      <td>
+                        {exp.status !== "disbursed" && (
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            <button onClick={() => handleDisburse(exp.id)} className="btn btn-green btn-sm">Disburse</button>
+                            <button onClick={() => openEditModal(exp)} className="btn btn-amber btn-sm">Edit</button>
+                            <button onClick={() => handleDelete(exp.id)} className="btn btn-rose btn-sm">Delete</button>
+                          </div>
                         )}
                       </td>
                     </tr>
                   ))
                 ) : (
-                  <tr>
-                    <td
-                      colSpan="5"
-                      className="text-center py-6"
-                      style={{ color: COLORS.TEXT_MUTED }}
-                    >
-                      No expenses found
-                    </td>
-                  </tr>
+                  <tr><td colSpan="7" style={{ textAlign: "center", padding: "32px", color: "var(--slate)" }}>No expenses found</td></tr>
                 )}
               </tbody>
             </table>

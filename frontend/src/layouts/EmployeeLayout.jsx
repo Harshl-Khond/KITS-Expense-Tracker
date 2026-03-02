@@ -1,144 +1,59 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Footer from "../components/Footer";
+import { getPrefetchHandler } from "../prefetch";
 
-const COLORS = {
-  NAVBAR: "#3A5A7A",
-  NAVBAR_DARK: "#2F4B66",
-  PAGE_BG: "#E6EDF3",
-  CARD_BG: "#FFFFFF",
-  ACCENT: "#5C8DB8",
-  ACCENT_HOVER: "#4A7AA3",
-  TEXT_MAIN: "#1F2A37",
-  TEXT_MUTED: "#4B5563",
-};
+const navItems = [
+  ["Dashboard", "/employee-dashboard"],
+  ["Add Expense", "/expense"],
+  ["My Expenses", "/my-expenses"],
+];
 
 function EmployeeLayout({ children }) {
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState(false);
 
-  const logout = () => {
-    localStorage.clear();
-    navigate("/login");
-  };
+  const logout = () => { localStorage.clear(); navigate("/login"); };
 
   return (
-    <div
-      className="min-h-screen"
-      style={{ backgroundColor: COLORS.PAGE_BG, color: COLORS.TEXT_MUTED }}
-    >
+    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column" }}>
       {/* Navbar */}
-      <nav
-        className="fixed top-0 left-0 w-full z-50 shadow-md"
-        style={{ backgroundColor: COLORS.NAVBAR }}
-      >
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-white">
-            Employee Panel
+      <nav className="navbar">
+        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center", height: "60px" }}>
+          <h1 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#fff", letterSpacing: "-0.3px" }}>
+            💼 Employee Panel
           </h1>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-6">
-            {[
-              ["Dashboard", "/employee-dashboard"],
-              ["Add Expense", "/expense"],
-              ["My Expenses", "/my-expenses"],
-            ].map(([label, path]) => (
-              <Link
-                key={label}
-                to={path}
-                className="font-medium hover:underline"
-                style={{ color: "#EAF2FA" }}
-              >
-                {label}
-              </Link>
+          {/* Desktop */}
+          <div className="hidden md:flex" style={{ alignItems: "center", gap: "24px" }}>
+            {navItems.map(([label, path]) => (
+              <Link key={label} to={path} className="nav-link" onMouseEnter={getPrefetchHandler(path)}>{label}</Link>
             ))}
-
-            <button
-              onClick={logout}
-              className="px-4 py-2 rounded-md font-medium text-white transition"
-              style={{ backgroundColor: COLORS.ACCENT }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.backgroundColor = COLORS.ACCENT_HOVER)
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.backgroundColor = COLORS.ACCENT)
-              }
-            >
-              Logout
-            </button>
+            <button onClick={logout} className="btn btn-rose btn-sm">Logout</button>
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden text-2xl text-white"
-            onClick={() => setOpenMenu(!openMenu)}
-          >
-            ☰
+          {/* Mobile */}
+          <button className="md:hidden" style={{ background: "none", border: "none", color: "#fff", fontSize: "1.5rem", cursor: "pointer" }} onClick={() => setOpenMenu(!openMenu)}>
+            {openMenu ? "✕" : "☰"}
           </button>
         </div>
 
-        {/* Mobile Menu */}
         {openMenu && (
-          <div
-            className="md:hidden px-6 pb-4"
-            style={{ backgroundColor: COLORS.NAVBAR_DARK }}
-          >
-            <div className="flex flex-col gap-3 text-white">
-              {[
-                ["Dashboard", "/employee-dashboard"],
-                ["Add Expense", "/expense"],
-                ["My Expenses", "/my-expenses"],
-              ].map(([label, path]) => (
-                <Link
-                  key={label}
-                  to={path}
-                  onClick={() => setOpenMenu(false)}
-                  className="py-2"
-                >
-                  {label}
-                </Link>
+          <div style={{ background: "var(--navy-light)", padding: "12px 24px 16px" }} className="md:hidden">
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {navItems.map(([label, path]) => (
+                <Link key={label} to={path} onClick={() => setOpenMenu(false)} onMouseEnter={getPrefetchHandler(path)} style={{ color: "rgba(255,255,255,0.8)", padding: "8px 0", textDecoration: "none", fontSize: "0.9rem" }}>{label}</Link>
               ))}
-
-              <button
-                onClick={logout}
-                className="mt-2 px-4 py-2 rounded-md font-medium"
-                style={{ backgroundColor: COLORS.ACCENT }}
-              >
-                Logout
-              </button>
+              <button onClick={logout} className="btn btn-rose btn-sm" style={{ marginTop: "8px" }}>Logout</button>
             </div>
           </div>
         )}
       </nav>
 
       {/* Main Content */}
-      <main className="pt-24 px-4 md:px-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Welcome Card */}
-          <div
-            className="rounded-xl p-6 mb-6 shadow-sm"
-            style={{
-              backgroundColor: COLORS.CARD_BG,
-              borderLeft: `5px solid ${COLORS.ACCENT}`,
-              color: COLORS.TEXT_MAIN,
-            }}
-          >
-            <h3 className="text-2xl font-semibold">
-              Welcome, Employee
-            </h3>
-          </div>
-
-          {/* Content Card */}
-          <div
-            className="rounded-xl p-6 shadow-sm"
-            style={{
-              backgroundColor: COLORS.CARD_BG,
-              color: COLORS.TEXT_MUTED,
-            }}
-          >
-            {children}
-          </div>
+      <main style={{ flex: 1, paddingTop: "80px", paddingBottom: "24px" }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 20px" }}>
+          {children}
         </div>
       </main>
 

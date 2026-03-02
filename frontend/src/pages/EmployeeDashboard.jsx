@@ -2,138 +2,99 @@ import { useEffect, useState } from "react";
 import EmployeeLayout from "../layouts/EmployeeLayout";
 import { api } from "../api";
 
-const COLORS = {
-  PAGE_BG: "#E6EDF3",
-  CARD_BG: "#FFFFFF",
-  NAVY: "#3A5A7A",
-  ACCENT: "#5C8DB8",
-  ACCENT_DARK: "#4A7AA3",
-  TEXT_MAIN: "#1F2A37",
-  TEXT_MUTED: "#4B5563",
-  BORDER: "#B6C7D6",
-};
-
 function EmployeeDashboard() {
-  const [funds, setFunds] = useState([]);
-  const [balance, setBalance] = useState(0);
+  const user = JSON.parse(localStorage.getItem("user"));
+  const email = user?.email;
 
-  const loadFunds = async () => {
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState({ total_submitted: 0, total_disbursed: 0, total_pending: 0, pending_count: 0, disbursed_count: 0, total_count: 0 });
+  const [expenses, setExpenses] = useState([]);
+
+  const loadData = async () => {
     try {
-      const fundRes = await api.get("/get-all-funds");
-      const summaryRes = await api.get("/get-summary");
-
-      setFunds(fundRes.data.funds || []);
-      setBalance(summaryRes.data.balance || 0);
+      const res = await api.get(`/get-employee-summary/${email}`);
+      setSummary(res.data);
+      const sorted = (res.data.expenses || []).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      setExpenses(sorted);
     } catch (err) {
-      console.log("Error loading dashboard fund data", err);
+      console.log("Error loading dashboard data", err);
+      if (err.response?.status === 401) { localStorage.clear(); window.location.href = "/login"; }
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadFunds();
-  }, []);
+  useEffect(() => { loadData(); }, []);
+
+  if (loading) {
+    return (
+      <EmployeeLayout>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+          <p style={{ color: "var(--slate)" }}>Loading dashboard...</p>
+        </div>
+      </EmployeeLayout>
+    );
+  }
+
+  const cards = [
+    { label: "Total Submitted", value: `₹${summary.total_submitted}`, accent: "indigo", icon: "📋", sub: `${summary.total_count} expenses` },
+    { label: "Pending Amount", value: `₹${summary.total_pending}`, accent: "amber", icon: "⏳", sub: `${summary.pending_count} pending` },
+    { label: "Disbursed Amount", value: `₹${summary.total_disbursed}`, accent: "green", icon: "✅", sub: `${summary.disbursed_count} approved` },
+  ];
 
   return (
     <EmployeeLayout>
-      {/* Center Wrapper */}
-      <div className="flex flex-col items-center justify-center min-h-[70vh]">
+      <div className="animate-in">
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--navy)", marginBottom: "4px" }}>My Dashboard</h1>
+        <p style={{ color: "var(--slate)", fontSize: "0.875rem", marginBottom: "28px" }}>Your expense summary</p>
 
-        {/* Title */}
-        <h1
-          className="text-3xl md:text-4xl font-semibold mb-2"
-          style={{ color: COLORS.NAVY }}
-        >
-          Employee Dashboard
-        </h1>
-        <p className="mb-8" style={{ color: COLORS.TEXT_MUTED }}>
-          Welcome to your dashboard
-        </p>
-
-        {/* Available Balance Card */}
-        <div
-          className="w-full max-w-sm p-6 mb-10 rounded-xl shadow-sm text-center"
-          style={{
-            backgroundColor: COLORS.CARD_BG,
-            borderLeft: `5px solid ${COLORS.ACCENT}`,
-          }}
-        >
-          <h2
-            className="text-lg font-medium mb-1"
-            style={{ color: COLORS.TEXT_MAIN }}
-          >
-            Available Fund
-          </h2>
-          <p
-            className="text-4xl font-bold mt-3"
-            style={{ color: COLORS.ACCENT_DARK }}
-          >
-            ₹{balance}
-          </p>
+        {/* Summary Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "32px" }}>
+          {cards.map((c, i) => (
+            <div key={i} className={`card card-accent-${c.accent}`} style={{ padding: "22px 20px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <p style={{ fontSize: "0.82rem", fontWeight: 500, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{c.label}</p>
+                <span style={{ fontSize: "1.3rem" }}>{c.icon}</span>
+              </div>
+              <p style={{ fontSize: "1.75rem", fontWeight: 700, color: `var(--${c.accent})` }}>{c.value}</p>
+              <p style={{ fontSize: "0.78rem", color: "var(--slate-light)", marginTop: "4px" }}>{c.sub}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Fund History */}
-        <div
-          className="w-full max-w-5xl p-6 rounded-xl shadow-sm"
-          style={{
-            backgroundColor: COLORS.CARD_BG,
-            borderLeft: `5px solid ${COLORS.ACCENT}`,
-          }}
-        >
-          <h3
-            className="text-xl font-semibold mb-6 text-center"
-            style={{ color: COLORS.NAVY }}
-          >
-            Fund History
-          </h3>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse">
-              <thead>
-                <tr style={{ backgroundColor: COLORS.PAGE_BG }}>
-                  <th className="py-3 px-4 text-left">Date</th>
-                  <th className="py-3 px-4 text-left">Amount</th>
-                  <th className="py-3 px-4 text-left">Description</th>
-                  <th className="py-3 px-4 text-left">Added By</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {funds.length > 0 ? (
-                  funds.map((f) => (
-                    <tr
-                      key={f.id}
-                      className="border-b"
-                      style={{ borderColor: COLORS.BORDER }}
-                    >
-                      <td className="py-2 px-4">{f.date}</td>
-                      <td
-                        className="py-2 px-4 font-semibold"
-                        style={{ color: COLORS.ACCENT_DARK }}
-                      >
-                        ₹{f.amount}
-                      </td>
-                      <td className="py-2 px-4">
-                        {f.description || "-"}
-                      </td>
-                      <td className="py-2 px-4">
-                        {f.admin_name || f.admin_email}
+        {/* Recent Expenses */}
+        <div className="card" style={{ padding: "24px" }}>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--navy)", marginBottom: "16px" }}>Recent Expenses</h2>
+          {expenses.length > 0 ? (
+            <div style={{ overflowX: "auto" }}>
+              <table className="clean-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses.slice(0, 8).map((exp) => (
+                    <tr key={exp.id}>
+                      <td>{exp.date}</td>
+                      <td>{exp.description}</td>
+                      <td style={{ fontWeight: 600 }}>₹{exp.amount}</td>
+                      <td>
+                        <span className={`badge ${exp.status === "disbursed" ? "badge-disbursed" : "badge-pending"}`}>
+                          {exp.status === "disbursed" ? "Disbursed" : "Pending"}
+                        </span>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="4"
-                      className="text-center py-6"
-                      style={{ color: COLORS.TEXT_MUTED }}
-                    >
-                      No fund records available
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p style={{ color: "var(--slate)", textAlign: "center", padding: "24px 0" }}>No expenses yet</p>
+          )}
         </div>
       </div>
     </EmployeeLayout>

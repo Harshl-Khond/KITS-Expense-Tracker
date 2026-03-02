@@ -2,162 +2,58 @@ import { useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 import { api } from "../api";
 
-const COLORS = {
-  PAGE_BG: "#CAD2C5",
-  CARD_BG: "#FFFFFF",
-  NAVY: "#2F3E46",
-  ACCENT: "#52796F",
-  ACCENT_HOVER: "#3A5A40",
-  TEXT_MAIN: "#1B1F23",
-  TEXT_MUTED: "#4F5D5E",
-  BORDER: "#84A98C",
-};
-
 function AddFund() {
   const admin = JSON.parse(localStorage.getItem("user"));
   const admin_email = admin?.email;
 
-  const [form, setForm] = useState({
-    date: "",
-    amount: "",
-    description: "",
-  });
-
+  const [form, setForm] = useState({ date: "", amount: "", description: "" });
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => { setForm({ ...form, [e.target.name]: e.target.value }); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    setLoading(true);
     try {
-      const res = await api.post("/add-fund", {
-        ...form,
-        admin_email,
-      });
-
+      const res = await api.post("/add-fund", { ...form, admin_email });
       setMessage(res.data.message);
       setForm({ date: "", amount: "", description: "" });
     } catch (err) {
-      if (err.response?.status === 401) {
-        setMessage("Session expired. Please login again.");
-        localStorage.clear();
-        window.location.href = "/login";
-        return;
-      }
+      if (err.response?.status === 401) { setMessage("Session expired."); localStorage.clear(); window.location.href = "/login"; return; }
       setMessage("Failed to add fund");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <AdminLayout>
-      {/* Center Wrapper */}
-      <div className="flex flex-col items-center justify-center min-h-[70vh]">
+      <div className="animate-in" style={{ maxWidth: "460px", margin: "0 auto" }}>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--navy)", marginBottom: "4px" }}>Add New Fund</h1>
+        <p style={{ color: "var(--slate)", fontSize: "0.875rem", marginBottom: "24px" }}>Enter fund details below</p>
 
-        {/* Page Title */}
-        <h2
-          className="text-3xl font-semibold mb-2"
-          style={{ color: COLORS.NAVY }}
-        >
-          Add New Fund
-        </h2>
-        <p className="mb-6" style={{ color: COLORS.TEXT_MUTED }}>
-          Enter fund details below
-        </p>
-
-        {/* Form Card */}
-        <div
-          className="w-full max-w-md p-8 rounded-xl shadow-sm"
-          style={{
-            backgroundColor: COLORS.CARD_BG,
-            borderLeft: `5px solid ${COLORS.ACCENT}`,
-          }}
-        >
-          <form onSubmit={handleSubmit} className="space-y-5">
-
-            {/* Date */}
+        <div className="card" style={{ padding: "28px 24px" }}>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <div>
-              <label
-                className="block mb-1 font-medium"
-                style={{ color: COLORS.TEXT_MAIN }}
-              >
-                Date
-              </label>
-              <input
-                type="date"
-                name="date"
-                value={form.date}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md border outline-none"
-                style={{ borderColor: COLORS.BORDER }}
-                required
-              />
+              <label style={{ display: "block", marginBottom: "5px", fontSize: "0.82rem", fontWeight: 500, color: "var(--navy-light)" }}>Date</label>
+              <input type="date" name="date" value={form.date} onChange={handleChange} className="input" required />
             </div>
-
-            {/* Amount */}
             <div>
-              <label
-                className="block mb-1 font-medium"
-                style={{ color: COLORS.TEXT_MAIN }}
-              >
-                Amount
-              </label>
-              <input
-                type="number"
-                name="amount"
-                placeholder="Enter amount"
-                value={form.amount}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md border outline-none"
-                style={{ borderColor: COLORS.BORDER }}
-                required
-              />
+              <label style={{ display: "block", marginBottom: "5px", fontSize: "0.82rem", fontWeight: 500, color: "var(--navy-light)" }}>Amount (₹)</label>
+              <input type="number" name="amount" placeholder="Enter amount" value={form.amount} onChange={handleChange} className="input" required />
             </div>
-
-            {/* Description */}
             <div>
-              <label
-                className="block mb-1 font-medium"
-                style={{ color: COLORS.TEXT_MAIN }}
-              >
-                Description
-              </label>
-              <input
-                type="text"
-                name="description"
-                placeholder="Description"
-                value={form.description}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md border outline-none"
-                style={{ borderColor: COLORS.BORDER }}
-                required
-              />
+              <label style={{ display: "block", marginBottom: "5px", fontSize: "0.82rem", fontWeight: 500, color: "var(--navy-light)" }}>Description</label>
+              <input type="text" name="description" placeholder="Brief description" value={form.description} onChange={handleChange} className="input" required />
             </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              className="w-full py-2.5 rounded-md font-semibold text-white transition"
-              style={{ backgroundColor: COLORS.ACCENT }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.backgroundColor = COLORS.ACCENT_HOVER)
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.backgroundColor = COLORS.ACCENT)
-              }
-            >
-              Add Fund
+            <button type="submit" className="btn btn-primary" style={{ width: "100%", padding: "11px", opacity: loading ? 0.7 : 1 }} disabled={loading}>
+              {loading ? "Adding..." : "Add Fund"}
             </button>
           </form>
 
-          {/* Message */}
           {message && (
-            <p
-              className="text-center mt-4 font-medium"
-              style={{ color: COLORS.NAVY }}
-            >
+            <p style={{ textAlign: "center", marginTop: "14px", fontSize: "0.85rem", fontWeight: 500, color: message.toLowerCase().includes("success") ? "var(--green)" : "var(--rose)" }}>
               {message}
             </p>
           )}

@@ -1,2 +1,409 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/* ========================================
+   CLEAN PROFESSIONAL DESIGN SYSTEM
+   Sober colors · Elegant typography · Subtle depth
+   ======================================== */
+
+:root {
+    --bg: #f4f6f9;
+    --bg-white: #ffffff;
+    --navy: #1e293b;
+    --navy-light: #334155;
+    --teal: #0d9488;
+    --teal-dark: #0f766e;
+    --teal-light: #ccfbf1;
+    --indigo: #4f46e5;
+    --indigo-light: #e0e7ff;
+    --amber: #d97706;
+    --amber-light: #fef3c7;
+    --rose: #e11d48;
+    --rose-light: #ffe4e6;
+    --green: #059669;
+    --green-light: #d1fae5;
+    --slate: #64748b;
+    --slate-light: #94a3b8;
+    --border: #e2e8f0;
+    --border-hover: #cbd5e1;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.03);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.06), 0 4px 10px rgba(0, 0, 0, 0.04);
+    --radius: 12px;
+    --radius-sm: 8px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--navy);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+}
+
+/* ========================================
+   CARDS
+   ======================================== */
+.card {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.card-accent-teal {
+    border-left: 4px solid var(--teal);
+}
+
+.card-accent-indigo {
+    border-left: 4px solid var(--indigo);
+}
+
+.card-accent-amber {
+    border-left: 4px solid var(--amber);
+}
+
+.card-accent-rose {
+    border-left: 4px solid var(--rose);
+}
+
+.card-accent-green {
+    border-left: 4px solid var(--green);
+}
+
+/* ========================================
+   INPUTS
+   ======================================== */
+.input {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-family: 'Inter', sans-serif;
+    color: var(--navy);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input::placeholder {
+    color: var(--slate-light);
+}
+
+.input:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+}
+
+.input option {
+    background: #fff;
+    color: var(--navy);
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.875rem;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.btn:active {
+    transform: scale(0.97);
+}
+
+.btn-primary {
+    background: var(--teal);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: var(--teal-dark);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-indigo {
+    background: var(--indigo);
+    color: #fff;
+}
+
+.btn-indigo:hover {
+    background: #4338ca;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-amber {
+    background: var(--amber);
+    color: #fff;
+}
+
+.btn-amber:hover {
+    background: #b45309;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-rose {
+    background: var(--rose);
+    color: #fff;
+}
+
+.btn-rose:hover {
+    background: #be123c;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-green {
+    background: var(--green);
+    color: #fff;
+}
+
+.btn-green:hover {
+    background: #047857;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--navy-light);
+}
+
+.btn-outline:hover {
+    border-color: var(--teal);
+    color: var(--teal);
+    background: var(--teal-light);
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--slate);
+    border: none;
+    padding: 6px 12px;
+}
+
+.btn-ghost:hover {
+    color: var(--navy);
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 6px;
+}
+
+/* ========================================
+   BADGES
+   ======================================== */
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-pending {
+    background: var(--amber-light);
+    color: var(--amber);
+}
+
+.badge-disbursed {
+    background: var(--green-light);
+    color: var(--green);
+}
+
+/* ========================================
+   TABLES
+   ======================================== */
+.clean-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.clean-table thead th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--slate);
+    background: var(--bg);
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+}
+
+.clean-table tbody td {
+    padding: 12px 16px;
+    font-size: 0.88rem;
+    color: var(--navy-light);
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.clean-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.clean-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ========================================
+   NAVBAR
+   ======================================== */
+.navbar {
+    background: var(--navy);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 50;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.nav-link {
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    font-size: 0.875rem;
+    text-decoration: none;
+    padding: 6px 2px;
+    transition: color 0.2s;
+    border-bottom: 2px solid transparent;
+}
+
+.nav-link:hover {
+    color: #fff;
+    border-bottom-color: var(--teal);
+}
+
+/* ========================================
+   MODAL
+   ======================================== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 16px;
+    animation: fadeIn 0.15s ease;
+}
+
+.modal-card {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: 32px;
+    width: 100%;
+    max-width: 480px;
+    animation: slideUp 0.2s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-in {
+    animation: fadeInUp 0.4s ease forwards;
+}
+
+/* ========================================
+   SCROLLBAR
+   ======================================== */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--slate-light);
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+@media (max-width: 768px) {
+
+    .clean-table thead th,
+    .clean-table tbody td {
+        padding: 10px 10px;
+        font-size: 0.82rem;
+    }
+
+    .modal-card {
+        padding: 24px;
+    }
+}
