@@ -197,13 +197,15 @@ function AllExpenses() {
                         </span>
                       </td>
                       <td>
-                        {exp.status !== "disbursed" && (
-                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                            <button onClick={() => handleDisburse(exp.id)} className="btn btn-green btn-sm">Disburse</button>
-                            <button onClick={() => openEditModal(exp)} className="btn btn-amber btn-sm">Edit</button>
-                            <button onClick={() => handleDelete(exp.id)} className="btn btn-rose btn-sm">Delete</button>
-                          </div>
-                        )}
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                          {exp.status !== "disbursed" && (
+                            <>
+                              <button onClick={() => handleDisburse(exp.id)} className="btn btn-green btn-sm">Disburse</button>
+                              <button onClick={() => openEditModal(exp)} className="btn btn-amber btn-sm">Edit</button>
+                            </>
+                          )}
+                          <button onClick={() => handleDelete(exp.id)} className="btn btn-rose btn-sm">Delete</button>
+                        </div>
                       </td>
                     </tr>
                   ))

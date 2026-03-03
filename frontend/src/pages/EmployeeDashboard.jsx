@@ -37,34 +37,45 @@ function EmployeeDashboard() {
   }
 
   const cards = [
-    { label: "Total Submitted", value: `₹${summary.total_submitted}`, accent: "indigo", icon: "📋", sub: `${summary.total_count} expenses` },
-    { label: "Pending Amount", value: `₹${summary.total_pending}`, accent: "amber", icon: "⏳", sub: `${summary.pending_count} pending` },
-    { label: "Disbursed Amount", value: `₹${summary.total_disbursed}`, accent: "green", icon: "✅", sub: `${summary.disbursed_count} approved` },
+    { label: "Total Expense", value: `₹${summary.total_submitted}`, accent: "indigo", icon: "📋", sub: `${summary.total_count} expenses` },
+    { label: "Pending Expense", value: `₹${summary.total_pending}`, accent: "amber", icon: "⏳", sub: `${summary.pending_count} pending` },
+    { label: "Disbursed Expense", value: `₹${summary.total_disbursed}`, accent: "green", icon: "✅", sub: `${summary.disbursed_count} approved` },
   ];
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  };
 
   return (
     <EmployeeLayout>
-      <div className="animate-in">
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--navy)", marginBottom: "4px" }}>My Dashboard</h1>
-        <p style={{ color: "var(--slate)", fontSize: "0.875rem", marginBottom: "28px" }}>Your expense summary</p>
+      <div className="animate-in dashboard-container">
+        <div className="premium-header">
+          <h1>{getGreeting()}, {user?.name || 'Employee'}!</h1>
+          <p>Your personal expense summary and history</p>
+        </div>
 
         {/* Summary Cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "32px" }}>
+        <div className="stats-grid">
           {cards.map((c, i) => (
-            <div key={i} className={`card card-accent-${c.accent}`} style={{ padding: "22px 20px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                <p style={{ fontSize: "0.82rem", fontWeight: 500, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{c.label}</p>
-                <span style={{ fontSize: "1.3rem" }}>{c.icon}</span>
+            <div key={i} className={`card glass-card hover-lift card-accent-${c.accent}`} style={{ padding: "24px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.8px" }}>{c.label}</p>
+                <div style={{ background: `var(--${c.accent}-light)`, padding: '8px', borderRadius: '10px', fontSize: '1.2rem' }}>{c.icon}</div>
               </div>
-              <p style={{ fontSize: "1.75rem", fontWeight: 700, color: `var(--${c.accent})` }}>{c.value}</p>
-              <p style={{ fontSize: "0.78rem", color: "var(--slate-light)", marginTop: "4px" }}>{c.sub}</p>
+              <p style={{ fontSize: "2rem", fontWeight: 800, color: `var(--${c.accent})`, letterSpacing: '-1px' }}>{c.value}</p>
+              <p style={{ fontSize: "0.75rem", color: "var(--slate-light)", marginTop: "8px", fontWeight: 500 }}>{c.sub}</p>
             </div>
           ))}
         </div>
 
+        <div style={{ marginTop: '40px' }}></div>
+
         {/* Recent Expenses */}
-        <div className="card" style={{ padding: "24px" }}>
-          <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--navy)", marginBottom: "16px" }}>Recent Expenses</h2>
+        <div className="chart-container animate-in" style={{ padding: "24px", animationDelay: '0.1s' }}>
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--navy)", marginBottom: "20px" }}>📑 Recent Expenses</h2>
           {expenses.length > 0 ? (
             <div style={{ overflowX: "auto" }}>
               <table className="clean-table">
@@ -79,9 +90,9 @@ function EmployeeDashboard() {
                 <tbody>
                   {expenses.slice(0, 8).map((exp) => (
                     <tr key={exp.id}>
-                      <td>{exp.date}</td>
+                      <td style={{ fontWeight: 500 }}>{exp.date}</td>
                       <td>{exp.description}</td>
-                      <td style={{ fontWeight: 600 }}>₹{exp.amount}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--navy)' }}>₹{exp.amount}</td>
                       <td>
                         <span className={`badge ${exp.status === "disbursed" ? "badge-disbursed" : "badge-pending"}`}>
                           {exp.status === "disbursed" ? "Disbursed" : "Pending"}
@@ -93,7 +104,10 @@ function EmployeeDashboard() {
               </table>
             </div>
           ) : (
-            <p style={{ color: "var(--slate)", textAlign: "center", padding: "24px 0" }}>No expenses yet</p>
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--slate)' }}>
+              <span style={{ fontSize: '3rem', marginBottom: '16px', display: 'block' }}>📭</span>
+              <p>No expenses found in your history</p>
+            </div>
           )}
         </div>
       </div>

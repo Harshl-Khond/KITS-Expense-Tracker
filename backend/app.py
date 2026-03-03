@@ -1,9 +1,11 @@
+import os
 import base64
 import io
 import time
 from flask import Flask, request, jsonify, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from firebase_setup import db
+from google.cloud import firestore
 from flask_cors import CORS
 import uuid
 from openpyxl import Workbook
@@ -168,6 +170,12 @@ def add_expense():
 
         db.collection("expenses").add(expense_data)
 
+        # Increment total submitted for the employee
+        db.collection("employee_stats").document(email).set({
+            "total_submitted_amount": firestore.Increment(amount),
+            "total_submitted_count": firestore.Increment(1)
+        }, merge=True)
+
         invalidate_summary_cache()
         return jsonify({"message": "Expense submitted successfully (pending admin approval)"}), 200
 
@@ -214,7 +222,20 @@ def disburse_expense():
         expense_ref.update({"status": "disbursed"})
 
         new_balance = current_balance - amount
-        db.collection("fund_balance").document("main").set({"balance": new_balance})
+        
+        # Increment total disbursed and decrement balance
+        db.collection("fund_balance").document("main").update({
+            "balance": new_balance,
+            "total_expenses_amount": firestore.Increment(amount)
+        })
+
+        # Increment total disbursed for the employee
+        employee_email = expense.get("email")
+        if employee_email:
+            db.collection("employee_stats").document(employee_email).set({
+                "total_disbursed_amount": firestore.Increment(amount),
+                "total_disbursed_count": firestore.Increment(1)
+            }, merge=True)
 
         invalidate_summary_cache()
         return jsonify({"message": "Expense disbursed successfully", "new_balance": new_balance}), 200
@@ -273,11 +294,15 @@ def add_fund():
         })
 
         balance_doc = db.collection("fund_balance").document("main").get()
-        current_balance = balance_doc.to_dict().get("balance", 0) if balance_doc.exists else 0
+        current_data = balance_doc.to_dict() if balance_doc.exists else {"balance": 0, "total_fund_amount": 0}
+        current_balance = current_data.get("balance", 0)
 
         new_balance = current_balance + amount
-
-        db.collection("fund_balance").document("main").set({"balance": new_balance})
+        
+        db.collection("fund_balance").document("main").set({
+            "balance": new_balance,
+            "total_fund_amount": firestore.Increment(amount)
+        }, merge=True)
 
         invalidate_summary_cache()
         return jsonify({"message": "Fund added successfully"}), 200
@@ -331,29 +356,61 @@ def get_summary():
         if summary_cache["data"] and (now - summary_cache["timestamp"]) < SUMMARY_CACHE_TTL:
             return jsonify(summary_cache["data"]), 200
 
-        # Read stored balance (1 read)
+        # Read stored balance and totals (1 read)
         balance_doc = db.collection("fund_balance").document("main").get()
-        balance = balance_doc.to_dict().get("balance", 0) if balance_doc.exists else 0
+        balance_data = balance_doc.to_dict() if balance_doc.exists else {}
+        
+        balance = balance_data.get("balance", 0)
+        total_fund = balance_data.get("total_fund_amount", 0)
+        total_expenses = balance_data.get("total_expenses_amount", 0)
 
-        # Single pass through expenses
-        total_disbursed = 0
-        pending_count = 0
-        for exp in db.collection("expenses").stream():
-            data = exp.to_dict()
-            status = data.get("status", "pending")
-            amount = float(data.get("amount", 0))
-            if status == "disbursed":
-                total_disbursed += amount
-            else:
-                pending_count += 1
+        # Migration/Initialization: If totals are missing OR inconsistent (e.g. pending < 0), recalculate once
+        needs_init = (
+            "total_fund_amount" not in balance_data or 
+            "total_expenses_amount" not in balance_data or 
+            "total_expenses_count" not in balance_data or
+            "balance" not in balance_data or
+            (total_fund - total_expenses) != balance  # Check for internal consistency
+        )
 
-        total_fund = balance + total_disbursed
+        if needs_init:
+            print("RE-INITIALIZING TOTALS IN FUND_BALANCE...")
+            actual_total_fund = sum([float(f.to_dict().get("amount", 0)) for f in db.collection("funds").stream()])
+            
+            all_expenses = [e.to_dict() for e in db.collection("expenses").stream()]
+            actual_total_expenses = sum([float(e.get("amount", 0)) for e in all_expenses if e.get("status") == "disbursed"])
+            
+            # Correct balance is Funds - Disbursed Expenses
+            actual_balance = actual_total_fund - actual_total_expenses
+            
+            actual_expenses_count = sum(1 for e in all_expenses if e.get("status") == "disbursed")
+            
+            db.collection("fund_balance").document("main").set({
+                "balance": actual_balance,
+                "total_fund_amount": actual_total_fund,
+                "total_expenses_amount": actual_total_expenses,
+                "total_expenses_count": actual_expenses_count
+            }, merge=True)
+            
+            balance = actual_balance
+            total_fund = actual_total_fund
+            total_expenses = actual_total_expenses
+            total_expenses_count = actual_expenses_count
+        else:
+            total_expenses_count = balance_data.get("total_expenses_count", 0)
+
+        # Calculate current pending amount dynamically (since it changes status)
+        pending_expenses = list(db.collection("expenses").where("status", "==", "pending").stream())
+        pending_count = len(pending_expenses)
+        pending_amount = sum([float(e.to_dict().get("amount", 0)) for e in pending_expenses])
 
         result = {
             "total_fund": total_fund,
-            "total_expenses": total_disbursed,
+            "total_expenses": total_expenses, # Disbursed
+            "total_submitted_amount": total_expenses + pending_amount, # Disbursed + Pending
             "balance": balance,
-            "pending_count": pending_count
+            "pending_count": pending_count,
+            "total_expenses_count": total_expenses_count
         }
 
         # Store in cache
@@ -382,30 +439,76 @@ def get_employee_summary(email):
         if cached and (now - cached["timestamp"]) < SUMMARY_CACHE_TTL:
             return jsonify(cached["data"]), 200
 
+        # Read stored employee stats
+        stats_doc = db.collection("employee_stats").document(email).get()
+        stats_data = stats_doc.to_dict() if stats_doc.exists else {}
+
+        total_submitted = stats_data.get("total_submitted_amount", 0)
+        total_disbursed = stats_data.get("total_disbursed_amount", 0)
+
+        # Fetch actual expenses list (for the table)
         expenses_ref = db.collection("expenses").where("email", "==", email).stream()
-
         expenses_list = []
-        total_submitted = 0
-        total_disbursed = 0
-        total_pending = 0
-        pending_count = 0
-        disbursed_count = 0
+        
+        # Migration/Initialization: If stats are missing OR inconsistent (e.g. total_submitted < total_disbursed), recalculate
+        needs_init = (
+            "total_submitted_amount" not in stats_data or 
+            "total_disbursed_amount" not in stats_data or
+            "total_submitted_count" not in stats_data or
+            "total_disbursed_count" not in stats_data or
+            (total_submitted < total_disbursed)
+        )
 
-        for exp in expenses_ref:
-            data = exp.to_dict()
-            data["id"] = exp.id
-            data.setdefault("status", "pending")
-            amount = float(data.get("amount", 0))
-            total_submitted += amount
+        if needs_init:
+            print(f"RE-INITIALIZING STATS FOR {email}...")
+            actual_submitted = 0
+            actual_disbursed = 0
+            actual_count_submitted = 0
+            actual_count_disbursed = 0
+            
+            # Reset expenses list to ensure we don't double up
+            expenses_list = []
+            expenses_ref = db.collection("expenses").where("email", "==", email).stream()
+            
+            for exp in expenses_ref:
+                data = exp.to_dict()
+                data["id"] = exp.id
+                data.setdefault("status", "pending")
+                amount = float(data.get("amount", 0))
+                
+                actual_submitted += amount
+                actual_count_submitted += 1
+                if data["status"] == "disbursed":
+                    actual_disbursed += amount
+                    actual_count_disbursed += 1
+                
+                expenses_list.append(data)
+            
+            # Update the stats document
+            db.collection("employee_stats").document(email).set({
+                "total_submitted_amount": actual_submitted,
+                "total_disbursed_amount": actual_disbursed,
+                "total_submitted_count": actual_count_submitted,
+                "total_disbursed_count": actual_count_disbursed
+            }, merge=True)
+            
+            total_submitted = actual_submitted
+            total_disbursed = actual_disbursed
+            total_count = actual_count_submitted
+            disbursed_count = actual_count_disbursed
+        else:
+            # Stats are valid, just get the expenses for the table
+            for exp in expenses_ref:
+                data = exp.to_dict()
+                data["id"] = exp.id
+                data.setdefault("status", "pending")
+                expenses_list.append(data)
+            
+            total_count = stats_data.get("total_submitted_count", 0)
+            disbursed_count = stats_data.get("total_disbursed_count", 0)
 
-            if data["status"] == "disbursed":
-                total_disbursed += amount
-                disbursed_count += 1
-            else:
-                total_pending += amount
-                pending_count += 1
-
-            expenses_list.append(data)
+        total_pending = total_submitted - total_disbursed
+        pending_count = total_count - disbursed_count
 
         result = {
             "total_submitted": total_submitted,
@@ -413,7 +516,7 @@ def get_employee_summary(email):
             "total_pending": total_pending,
             "pending_count": pending_count,
             "disbursed_count": disbursed_count,
-            "total_count": len(expenses_list),
+            "total_count": total_count,
             "expenses": expenses_list
         }
 
@@ -461,6 +564,35 @@ def admin_get_all_expenses():
         return jsonify({"error": "Failed to fetch expenses"}), 500
 
 
+# ------------------- ADMIN EMPLOYEE EXPENSES STATS -------------------
+@app.route("/admin/employee-expenses-stats", methods=["GET"])
+def admin_employee_expenses_stats():
+    valid, sess, code = validate_session(request.args)
+    if not valid:
+        return sess, code
+    
+    if sess.get("role") != "admin":
+        return jsonify({"error": "Admin access required"}), 403
+
+    try:
+        user_cache = get_user_name_cache()
+        stats_ref = db.collection("employee_stats").stream()
+        
+        data = []
+        for s in stats_ref:
+            email = s.id
+            stats = s.to_dict()
+            data.append({
+                "name": user_cache.get(email, email.split("@")[0]),
+                "total_expense": stats.get("total_submitted_amount", 0)
+            })
+            
+        return jsonify(data), 200
+    except Exception as e:
+        print("ERROR:", e)
+        return jsonify({"error": "Failed to fetch employee stats"}), 500
+
+
 # ------------------- UPDATE EXPENSE -------------------
 @app.route("/update-expense/<expense_id>", methods=["PUT"])
 def update_expense(expense_id):
@@ -490,10 +622,14 @@ def update_expense(expense_id):
             return jsonify({"error": "You can only edit your own expenses"}), 403
 
         update_fields = {}
+        old_amount = float(expense.get("amount", 0))
+        new_amount = old_amount
+        
         if data.get("description"):
             update_fields["description"] = data["description"]
         if data.get("amount"):
-            update_fields["amount"] = float(data["amount"])
+            new_amount = float(data["amount"])
+            update_fields["amount"] = new_amount
         if data.get("date"):
             update_fields["date"] = data["date"]
         if data.get("bill_image"):
@@ -503,6 +639,13 @@ def update_expense(expense_id):
             return jsonify({"error": "No fields to update"}), 400
 
         expense_ref.update(update_fields)
+
+        # If amount changed, update the persistent stats for the employee
+        if new_amount != old_amount:
+            delta = new_amount - old_amount
+            db.collection("employee_stats").document(expense.get("email")).set({
+                "total_submitted_amount": firestore.Increment(delta)
+            }, merge=True)
 
         invalidate_summary_cache()
         return jsonify({"message": "Expense updated successfully"}), 200
@@ -535,8 +678,8 @@ def delete_expense(expense_id):
 
         expense = expense_doc.to_dict()
 
-        # Only pending expenses can be deleted
-        if expense.get("status") == "disbursed":
+        # Only pending expenses can be deleted (except by admin)
+        if expense.get("status") == "disbursed" and sess.get("role") != "admin":
             return jsonify({"error": "Cannot delete a disbursed expense"}), 400
 
         # Employees can only delete their own expenses
