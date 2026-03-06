@@ -19,3 +19,18 @@ api.interceptors.request.use((config) => {
 
   return config;
 });
+
+// Add response interceptor for better debugging
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error("API Error Details:", {
+      message: error.message,
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+    return Promise.reject(error);
+  }
+);

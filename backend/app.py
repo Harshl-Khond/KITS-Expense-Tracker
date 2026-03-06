@@ -11,7 +11,11 @@ import uuid
 from openpyxl import Workbook
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+@app.route("/health")
+def health():
+    return {"status": "ok", "message": "Backend is healthy and reachable"}
 
 # ----------------------------------------------------
 # ⚡ IN-MEMORY CACHE FOR SUMMARIES
